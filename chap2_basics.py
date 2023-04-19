@@ -74,6 +74,9 @@ df = df.select(*select_columns)
 
 df.show()
 
+#%%
+
+df.select(df[2], df[1], df[6], df[9], df[10], df[14]).show()
 
 
 
