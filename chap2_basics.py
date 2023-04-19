@@ -70,8 +70,9 @@ df.count()
 
 select_columns = ['id', 'budget', 'popularity', 'release_date', 'revenue', 'title']
 
-df.select(select_columns)
+df = df.select(*select_columns)
 
+df.show()
 
 
 
