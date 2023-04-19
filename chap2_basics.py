@@ -65,4 +65,21 @@ df = spark.read.format(file_type)\
 df.printSchema()
 # %%
 df.count()
+
+# %%
+
+select_columns = ['id', 'budget', 'popularity', 'release_date', 'revenue', 'title']
+
+df.select(select_columns)
+
+
+
+
+
+
+
+
+
+
+
 # %%
