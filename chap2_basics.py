@@ -80,10 +80,7 @@ df.select(df[2], df[1], df[6], df[9], df[10], df[14]).show()
 
 #%%
 
-from pyspark.sql.functions import (isnan, count,
-                                   when,col, desc
-                                   
-                                   )
+from pyspark.sql.functions import *
 
 from pyspark.sql.types import IntegerType, FloatType, DateType
 
@@ -158,10 +155,43 @@ df_temp = df.filter((df['budget']!=0.0)&(df['budget'].isNotNull()) &
                     (~isnan(df['budget']))
                     )
 
-median = df_temp.approxQuantile(col='budget', probabilities=[0.5], 
-                           relativeError=0.1
+median = df_temp.approxQuantile(col=['budget','revenue'], probabilities=[0.5], 
+                           relativeError=0.001
                            )
 print('The median of budget is ' +str(median))
+
+
+# %%
+df.select('title').distinct().show(10, False)
+
+#%%
+df.agg(countDistinct(col("title")).alias("count")).show()
+
+#%% extract year from the release date, cal distinct count by year
+
+(df.withColumn('release_year', year('release_date'))
+ .groupBy("release_year")
+ .agg(countDistinct("title")).show(10, False)
+ )
+
+#%% extract month
+
+df.withColumn('release_month', month('release_date'))\
+    .select('release_month').show(10)
+
+#%% extract day of month
+
+(df.withColumn('release_day', dayofmonth('release_date'))
+ .select('release_day').show(10)
+    
+)
+
+
+
+
+
+
+
 
 
 # %%
