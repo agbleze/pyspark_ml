@@ -78,12 +78,75 @@ df.show()
 
 df.select(df[2], df[1], df[6], df[9], df[10], df[14]).show()
 
+#%%
+
+from pyspark.sql.functions import (isnan, count,
+                                   when,col, desc
+                                   
+                                   )
+
+from pyspark.sql.types import IntegerType, FloatType, DateType
+
+#%% count number of missing values
+
+(df.filter((df['popularity']=='')|df['popularity'].isNull()|
+           isnan(df['popularity'])).count()
+ )
 
 
+#%%
+df.select([count(when((col(c)=='') | col(c).isNull() 
+                      | isnan(c), c)).alias(c) 
+           for c in df.columns]).show()
 
 
+#%%
 
+df.groupBy(df['title']).count().sort(desc('count')).show(10, False)
 
+#%% subset and create temporary df without any missing values
+
+df_temp=df.filter((df['title']!='')&(df['title'].isNotNull())&
+          (~isnan(df['title']))
+          )
+
+#%% subset df to titles repeated more than 4
+
+(df_temp.groupby(df_temp['title']).count()
+ .filter("`count`>=4").sort(col("count").desc()).count()
+ )
+
+#%%
+
+del df_temp
+
+#%%
+df.dtypes
+
+#%% casting of datatypes
+
+df = df.withColumn("budget", df['budget'].cast("float"))
+df.dtypes
 
 
 # %%
+
+int_vars = ['id']
+float_vars = ['budget', 'popularity', 'revenue']
+date_vars = ['release_date']
+
+#%%
+
+for column in int_vars:
+    df = df.withColumn(column, df[column].cast(IntegerType()))
+
+for column in float_vars:
+    df = df.withColumn(column, df[column].cast(FloatType()))
+
+for column in date_vars:
+    df = df.withColumn(column, df[column].cast(DateType()))
+
+df.types
+
+
+
