@@ -146,7 +146,22 @@ for column in float_vars:
 for column in date_vars:
     df = df.withColumn(column, df[column].cast(DateType()))
 
-df.types
+df.dtypes
+
+#%%
+
+df.describe().show()
 
 
+# %% ###### cal median  #########
+df_temp = df.filter((df['budget']!=0.0)&(df['budget'].isNotNull()) & 
+                    (~isnan(df['budget']))
+                    )
 
+median = df_temp.approxQuantile(col='budget', probabilities=[0.5], 
+                           relativeError=0.1
+                           )
+print('The median of budget is ' +str(median))
+
+
+# %%
