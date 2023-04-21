@@ -222,9 +222,34 @@ df_py = spark.createDataFrame(df_pandas)
 #%% #######  JOINS ########
 
 
+#%%  ##### dropping duplicates  ########
+
+df.dropDuplicates(['title', 'release_year']).count()
 
 
+#%% ##### data visualization ########
+import pandas as pd
+from matplotlib import pyplot as plt
+import seaborn as sns
 
+df = df.withColumn('popularity', df['popularity'].cast(FloatType()))
+#
+histogram_data = (df.select('popularity')
+                  .rdd.flatMap(lambda x: x)
+                  ).histogram(25)
+
+# load computed histogram into pandas df
+
+hist_df = pd.DataFrame(list(zip(*histogram_data)), columns=['bin', 'frequency'])
+
+# plotting the data
+
+sns.set(rc={"figure.figsize": (12, 8)})
+sns.barplot(x=hist_df['bin'], y=hist_df['frequency'])
+plt.xticks(rotation=45)
+plt.show()
+
+#%% ####  filtering data to get a better viz ####
 
 
 
