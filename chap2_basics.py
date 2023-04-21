@@ -82,7 +82,7 @@ df.select(df[2], df[1], df[6], df[9], df[10], df[14]).show()
 
 from pyspark.sql.functions import *
 
-from pyspark.sql.types import IntegerType, FloatType, DateType
+from pyspark.sql.types import *
 
 #%% count number of missing values
 
@@ -186,12 +186,96 @@ df.withColumn('release_month', month('release_date'))\
     
 )
 
+#%% filter titles starting with Meet
+
+df.filter(df['title'].like('Meet%')).show(10, False)
+
+#%% filter titles that do not end with s
+df.filter(~df['title'].like('%s')).show(10, False)
+
+#%%  any title that contains ove
+
+df.filter(df['title'].rlike('\w*ove')).show(10,False)
+
+#%% filter title containing ove
+df.filter(df.title.contains('ove')).show(10,False)
+
+#%% identify columns with particular prefix or suffix
+# identify columns starting with re
+df.select(df.colRegex("`re\w*`")).printSchema()
+
+#%% identify columns with suffix e
+df.select(df.colRegex("`\w*e`")).printSchema()
+
+#%% ####### calculate variance  ###########
+
+mean_pop = df.agg({'popularity': 'mean'}).collect()[0]['avg(popularity)']
+count_obs = df.count()
+
+df = df.withColumn('mean_popularity', lit(mean_pop))
+
+df = df.withColumn('variance', pow((df['popularity']-df['mean_popularity']), 2))
+
+variance_sum = df.agg({'variance': 'sum'}).collect()[0]['sum(variance)']
+variance_population = variance_sum / (count_obs-1)
+
+#%%
+
+def new_cols(budget, popularity):
+    if budget < 10_000_000: budget_cat = 'Small'
+    elif budget < 100_000_000: budget_cat = 'Medium'
+    else: budget_cat = 'Big'
+    if popularity<3: ratings='Low'
+    elif popularity<5: ratings='Mid'
+    else: ratings='High'
+    return budget_cat, ratings
+# %% Apply the user-defined function on the DataFrame
+
+udfB = udf(new_cols, StructType([StructField("budget_cat", StringType(), True),
+                                 StructField("ratings", StringType(), True)])
+           )
+
+temp_df=df.select('id', 'budget', 'popularity').withColumn("newcat", udfB("budget", "popularity"))
+
+df_with_newcols = (temp_df.select('id', 'budget', 'popularity', 'newcat')
+                    .withColumn('budget_cat', temp_df.newcat.getItem('budget_cat'))
+                    .withColumn('ratings', temp_df.newcat.getItem('ratings'))
+                    .drop('newcat')
+                )
+df_with_newcols.show(15, False)
 
 
+#%%
 
+df_with_newcols = (df.select('id', 'budget', 'popularity')
+                   .withColumn('budget_cat', when(df['budget']<10_000_000, 'Small')
+                               .when(df['budget']<100_000_000, 'Medium')
+                               .otherwise('Big')
+                               )
+                   .withColumn('ratings', when(df['popularity']<3, 'Low')
+                               .when(df['popularity']<5,'Mid')
+                               .otherwise('High')
+                               )
+                   )
 
+df_with_newcols.show(15, False)
+# %% deleting and renaming columns
+# delete column
+columns_to_drop = ['budget_cat']
+df_with_newcols = df_with_newcols.drop(*columns_to_drop)
 
+df_with_newcols.printSchema()
 
+#%% renaming columns
+(df_with_newcols.withColumnRenamed('id', 'film_id')
+    .withColumnRenamed(existing='ratings', new='film_ratings')
+ ).printSchema()
 
+#%% alternative way of renaming
+
+new_names = [('budget', 'film_budget'), ('popularity', 'film_popularity')]
+
+(df_with_newcols.select(list(map(lambda old, new:col(old).alias(new), *zip(*new_names))))
+ ).printSchema()
 
 # %%
