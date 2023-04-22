@@ -251,10 +251,44 @@ plt.show()
 
 #%% ####  filtering data to get a better viz ####
 
+df_fil = df.filter('popularity < 22')
 
+hist_data = (df_fil.select('popularity')
+             .rdd.flatMap(lambda x: x)
+             ).histogram(25)
 
+hist_df = (pd.DataFrame(list(zip(*hist_data)), 
+                        columns=['bin', 'frequency']
+                        )
+        )
 
+sns.set(rc={'figure.figsize':(11.7, 8.27)})
+sns.barplot(x=hist_df['bin'], y=hist_df['frequency'])
+plt.xticks(rotation=25)
+plt.title('Distribution of Popularity - Data is filtered')
+plt.show()
 
+#%% ## how many films were released between 1960 and 1970 by the year ##
 
+# prepare df and convert to pandas
 
+df_cat = (df.filter("(release_year > 1959) and (release_year < 1971)")
+            .groupBy('release_year')
+            .count()
+            .toPandas()
+          )
+
+## sorting the values of display
+
+df_sort = df_cat.sort_values(by=['release_year'], ascending=False)
+
+# plotting the data
+
+sns.set(rc={'figure.figsize': (11.7, 8.27)})
+sns.barplot(x=df_cat['release_year'], y=df_cat['count'])
+plt.xticks(rotation=25)
+plt.title('Number of films released each year from 1960 to 1970 in our dataset')
+plt.show()
+
+#%%
 # %%
