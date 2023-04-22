@@ -246,6 +246,51 @@ model.explainedVariance
 
 # %%  #####  Singular Value Decomposition  #####
 
+from pyspark.mllib.linalg import Vectors
+from pyspark.mllib.linalg.distributed import RowMatrix
+
+
+#%% convert DF TO RDD
+
+df_svd_vector = df.rdd.map(lambda x: x['features'].toArray())
+
+mat = RowMatrix(df_svd_vector)
+
+# Compute top 5 singular values and corresponding vectors
+svd = mat.computeSVD(5, computeU=True)
+
+U = svd.U # U factor in rowmatrix
+s = svd.s # singular values stored on local dense vector
+V = svd.V # V factor is a local dense matrix
+
+
+#%%  #### Built-in Variable Selection Process: with target ########
+
+### chi-square selection
+
+from pyspark.ml.feature import ChiSqSelector
+
+features_list = char_vars
+
+selector = ChiSqSelector(numTopFeatures=6, featuresCol='features',
+                         outputCol='selectedFeatures', labelCol='y'
+                         )
+
+chi_selector = selector.fit(df)
+
+result = chi_selector.transform(df)
+
+print("ChiSqSelector output with top %d features selected" % selector.getNumTopFeatures())
+
+print("Selected Indices: ", chi_selector.selectedFeatures)
+
+features_df['chiq_importance'] = features_df['idx'].apply(lambda x: 
+    1 if x in chi_selector.selectedFeatures else 0)
+
+print(features_df)
+
+
+#%% #######  Model-based feature selection ######
 
 
 
@@ -261,3 +306,4 @@ model.explainedVariance
 
 
 
+# %%
