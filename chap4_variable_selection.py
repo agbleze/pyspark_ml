@@ -292,8 +292,43 @@ print(features_df)
 
 #%% #######  Model-based feature selection ######
 
+from pyspark.ml.classification import RandomForestClassifier
+
+rf = RandomForestClassifier(featuresCol='features', labelCol=target_variable_name)
+
+rf_model = rf.fit(df)
+rf_model.featureImportances
+
+#%%
+
+import pandas as pd
+
+for k, v in df.schema["features"].metadata["ml_attr"]["attrs"].items():
+    features_df = pd.DataFrame(v)
+    
+# temp output rf_output
+rf_output = rf_model.featureImportances
+features_df["Importance"] = features_df['idx'].apply(lambda x: rf_output[x]
+                                                     if x in rf_output.indices else 0
+                                                     )
+# sort values based on descending importnace feature
+features_df.sort_values("Importance", ascending=False, inplace= True)
 
 
+features_df
+
+#%% plot feature importance
+
+features_df.sort_values(by="Importance", ascending=False, inplace=True)
+plt.barh(features_df['name'], features_df['Importance'])
+plt.title("Feature Importance plot")
+plt.xlabel("Importance Score")
+plt.ylabel("Variable Importance")
+
+
+#%% ### custom-built variable selection process ###
+
+## Weight of evidence (WOE) and Information Value(IV)
 
 
 
