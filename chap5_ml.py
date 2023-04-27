@@ -33,6 +33,12 @@ def AssembleVectors(df, features_list, target_variable_name):
     return df
 
 
+#%%  ####### Linear regression  #######
+
+linear_df =data.select(['age', 'balance', 'day', 'duration', 'campaign',
+                        'pdays', 'previous']
+                       )
+target_variable_name = 'balance'
 
 
 
@@ -43,3 +49,4 @@ def AssembleVectors(df, features_list, target_variable_name):
 
 
 
+# %%
