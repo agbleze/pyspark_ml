@@ -40,6 +40,8 @@ linear_df =data.select(['age', 'balance', 'day', 'duration', 'campaign',
                        )
 target_variable_name = 'balance'
 
+features_list = linear_df.columns
+
 
 
 
