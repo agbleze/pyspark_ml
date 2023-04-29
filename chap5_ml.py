@@ -161,31 +161,64 @@ def CategoryToIndex(df, char_vars):
 
 
 #%% ##########
-binary_df = logistic_df
-
-CategoryToIndex()
+binary_df, y_label = CategoryToIndex(df=df, char_vars='y')
 
 
 
 #%%
 
-clf = DecisionTreeClassifier(featuresCol='features', labelCol='y', 
+clf = DecisionTreeClassifier(featuresCol='features', 
+                             labelCol='y_index', 
                              impurity='gini'
                              )
 
 
+clf_model = clf.fit(binary_df)
 
 
+clf2 = DecisionTreeClassifier(featuresCol='features',
+                              labelCol='y_index',
+                              impurity='entropy'
+                              )
+clf_model2 = clf2.fit(binary_df)
 
 #%%
 
+clf_model.transform(binary_df)  # predictions
+
+#%%  ### gini feature importance ###
+
+print(clf_model.featureImportances)
+
+print(clf_model2.featureImportances)
 
 
-clf_model = clf.fit(binary)
+#%% ### Decision Tree Regression ###
+
+from pyspark.ml.regression import DecisionTreeRegressor
+
+reg = DecisionTreeRegressor(featuresCol='features', 
+                            labelCol='balance',
+                            impurity='variance'
+                            )
+
+continuous_df = binary_df
+
+#%%
+reg_model = reg.fit(continuous_df)
+
+print(reg_model.featureImportances)
+
+#%%
+
+clf_model.toDebugString
+
+#%%
+reg_model.toDebugString
 
 
 
 
 
 
-
+# %%
