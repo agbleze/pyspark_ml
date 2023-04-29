@@ -139,4 +139,53 @@ print(multinomial_clf_model.interceptVector)
 
 
 
-# %%
+# %%  ######### Decision tree algorithm ######
+
+from pyspark.ml.classification import DecisionTreeClassifier
+from pyspark.ml.feature import StringIndexer
+
+
+#%%
+
+def CategoryToIndex(df, char_vars):
+    
+    char_df = df.select(char_vars)
+    indexers = [StringIndexer(inputCol=c, outputCol=c+"_index",
+                              handleInvalid="keep")
+                for c in char_df.columns
+                ]
+    pipeline = Pipeline(stages=indexers)
+    char_labels = pipeline.fit(char_df)
+    df = char_labels.transform(df)
+    return df, char_labels
+
+
+#%% ##########
+binary_df = logistic_df
+
+CategoryToIndex()
+
+
+
+#%%
+
+clf = DecisionTreeClassifier(featuresCol='features', labelCol='y', 
+                             impurity='gini'
+                             )
+
+
+
+
+
+#%%
+
+
+
+clf_model = clf.fit(binary)
+
+
+
+
+
+
+
