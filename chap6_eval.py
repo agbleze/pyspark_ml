@@ -24,8 +24,16 @@ train, test = df.randomSplit(weights=[0.7, 0.3], seed=12345)
 
 #%% #### option 2 ####
 
+from pyspark.ml.evaluation import BinaryClassificationEvaluator
+from pyspark.ml.classification import LogisticRegression
+from pyspark.ml.tuning import ParamGridBuilder, TrainValidationSplit
 
 
+
+lr = LogisticRegression(maxIter=10, 
+                        featuresCol='features',
+                        labelCol='label'
+                        )
 
 
 
