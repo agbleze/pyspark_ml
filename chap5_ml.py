@@ -218,7 +218,144 @@ reg_model.toDebugString
 
 
 
+#%% ########## Random Forest #######
+
+from pyspark.ml.classification import RandomForestClassifier
+
+#%%
+
+clf = RandomForestClassifier(featuresCol='features',
+                             labelCol='y_index'
+                             )
+
+clf_model = clf.fit(binary_df)
+print(clf_model.featureImportances)
+print(clf_model.toDebugString)
 
 
+#%%  ### Regression for RandomForest #####
+from pyspark.ml.regression import RandomForestRegressor
+
+reg = RandomForestRegressor(featuresCol='features',
+                            labelCol='balance'
+                            )
+reg_model = reg.fit(continuous_df)
+print(reg_model.featureImportances)
+print(reg_model.toDebugString)
+
+
+
+#%% ####  Gradient Boosting #####
+from pyspark.ml.classification import GBTClassifier
+clf = GBTClassifier(featuresCol='features', 
+                    labelCol='y_index'
+                    )
+clf_model = clf.fit(binary_df)
+print(clf_model.featureImportances)
+print(clf_model.toDebugString)
+
+
+# %% #### Gradient Boosting Regression ####
+from pyspark.ml.regression import GBTRegressor
+
+reg = GBTRegressor(featuresCol='features', labelCol='balance')
+reg_model = reg.fit(continuous_df)
+print(reg_model.featureImportances)
+print(reg_model.toDebugString)
+
+
+
+#%%  #### Support Vector Machines ####
+from pyspark.ml.classification import LinearSVC
+
+clf = LinearSVC(featuresCol='features', 
+                labelCol='y_index'
+                )
+
+clf_model = clf.fit(binary_df)
+print(clf_model.intercept, clf_model.coefficients)
+
+
+
+#%% Neural Networks ####
+from pyspark.ml.classification import MultilayerPerceptronClassifier
+
+clf = MultilayerPerceptronClassifier(featuresCol='features',
+                                     labelCol='y_index',
+                                     layers=[4,4,2]
+                                     )
+
+clf.fit(binary_df)
+
+
+
+# %%  #### One-vs-Rest Classifier ####
+
+target_variable_name = 'education'
+multiclass_df = data.select(['age', 'balance', 'day', 'duration',
+                             'campaign', 'pdays', 'previous',
+                             'job', 'education'
+                             ]
+                            )
+features_list = multiclass_df.columns
+features_list.remove(target_variable_name)
+
+multiclass_df = AssembleVectors(multiclass_df, features_list, 
+                                target_variable_name
+                                )
+
+#%%
+
+from pyspark.ml.classification import RandomForestClassifier, OneVsRest
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+(train, test) = multiclass_df.randomSplit([0.7, 0.3])
+
+# instantiate the base classifier
+clf = RandomForestClassifier(featuresCol='features',
+                             labelCol='education'
+                             )
+
+#%% instantiate the One Vs Rest Classifier
+
+ovr = OneVsRest(classifier=clf, featuresCol='features',
+                labelCol='education'
+                )
+
+# train the multiclass model
+
+ovrModel = ovr.fit(train)
+
+# score the model on test data
+predictions = ovrModel.transform(test)
+
+evaluator = MulticlassClassificationEvaluator(metricName="accuracy",
+                                               labelCol='education'
+                                               )
+
+accuracy = evaluator.evaluate(predictions)
+print("Test Error = %g" % (1.0 - accuracy))
+
+
+
+
+#%%  ##### Naive Bayes Classifier ####
+
+target_variable_name = "y"
+nonneg_df = data.select(['age', 'day', 'duration', 'campaign',
+                         'previous', 'y'
+                         ]
+                        )
+
+features_list = nonneg_df.columns
+
+features_list.remove(target_variable_name)
+
+nonneg_df = AssembleVectors(nonneg_df, features_list,target_variable_name)
+
+#%%
+
+from pyspark.ml.classification import NaiveBayes
+clf = NaiveBayes(featuresCol='features', labelCol='y')
+clf_model = clf.fit(nonneg_df)
 
 # %%
