@@ -297,8 +297,169 @@ def CreateDeciles(df, clf, score, prediction, target, buckets):
     
     # remove ties in scores work around
     window = Window.orderBy(F.desc(score))
+    predDF = predDF.withColumn("row_number", F.row_number().over(window))
+    predDF.cache()
+    
+    predDF = predDF.withColumn("row_number", predDF["row_number"].cast("double"))
+    
+    # partition into 10 buckets
+    window2 = Window.orderBy("row_number")
+    final_predDF = predDF.withColumn("deciles", F.ntile(buckets).over(window2))
+    final_predDF = final_predDF.withColumn("deciles", final_predDF["deciles"].cast("int"))
+    # create non target column
+    final_predDF = final_predDF.withColumn("non_target", 1-final_predDF[target])
+    final_predDF.cache()
+    
+    # ks calculation starts here
+    temp_deciles = final_predDF.groupby("deciles").agg(F.sum(target).alias(target)).toPandas()
+    non_target_cnt = final_predDF.groupby("deciles").agg(F.sum("non_target").alias("non_target")).toPandas()
+    temp_deciles = temp_deciles.merge(non_target_cnt, on="deciles", how="inner")
+    temp_deciles = temp_deciles.sort_values(by="deciles", ascending=True)
+    temp_deciles["total"] = temp_deciles[target] + temp_deciles["non_target"]
+    temp_deciles["target_%"] = (temp_deciles[target] / temp_deciles["total"]) * 100
+    temp_deciles["cum_target"] = temp_deciles[target].cumsum()
+    temp_deciles["cum_non_target"] = temp_deciles["non_target"].cumsum()
+    temp_deciles["target_dist"] = (temp_deciles["cum_target"] / temp_deciles[target].sum()) * 100
+    temp_deciles["non_target_dist"] = (temp_deciles["cum_non_target"] / temp_deciles["non_target"].sum()) * 100
+    temp_deciles["spread"] = temp_deciles["target_dist"] - temp_deciles["non_target_dist"]
+    decile_table = temp_deciles.round(2)
+    
+    decile_table = decile_table[["deciles", "total", "label", "non_target",
+                                 "target_%", "cum_target", "cum_non_target",
+                                 "target_dist", "non_target_dist", "spread"
+                                 ]]
+    print("KS Value - ", round(temp_deciles["spread"].max(), 2))
+    return final_predDF, decile_table
+
+
+ #%% create deciles on train and test set
+ 
+pred_train, train_deciles = CreateDeciles(train, clf_model, 'probability',
+                                           "prediction", "label", 10
+                                           )
+pred_test, test_deciles = CreateDeciles(test, clf_model, "probability",
+                                        "prediction", "label", 10
+                                        )
+
+
+# pandas styling funcs
+from collections import OrderedDict
+import pandas as pd
+import sys
+
+
+def plot_pandas_style(styler):
+    from IPython.core.display import HTML
+    html = '\n'.join([line.lstrip() for line in styler.render().split('\n')]) 
+    return HTML(html)   
     
     
+def highlight_max(s, color='yellow'):
+    """
+    highlight the maximum in a Series yellow.
+    """
+    is_max = s == s.max()
+    return ['background-color: {}'.format(color) if v else '' for v in is_max]
+
+
+def decile_labels(agg1, target, color='skyblue'):
+    agg1 = agg1.round(2)
+    agg1 = agg1.style.apply(highlight_max, color = 'yellow', 
+                            subset=['spread']
+                            ).set_precision(2)
+    agg1.bar(subset=[target], color='{}'.format(color), vmin=0)
+    agg1.bar(subset=['total'], color='{}'.format(color), vmin=0)
+    agg1.bar(subset=['target_%'], color='{}'.format(color), vmin=0)
+    return agg1
+
+
+
+#%% train deciles and KS
+plot_decile_train = decile_labels(train_deciles, 'label', color='skyblue')
+plot_pandas_style(plot_decile_train)
+
+
+#%% test deciles and KS
+plot_decile_test = decile_labels(test_deciles, 'label', color='skyblue')
+plot_pandas_style(plot_decile_test)
+
+
+
+#%% ### Actual vs Predicted, Gains Chart, Lift Chart
+
+def plots(agg1, target, type):
+    plt.figure(1, figsize=(20, 5))
+    
+    plt.subplot(131)
+    plt.plot(agg1['DECILE'], agg1['ACTUAL'], label='Actual')
+    plt.plot(agg1['DECILE'], agg1['PRED'], label='Pred')
+    plt.xticks(range(10,110,10))
+    plt.ylabel(str(target) + " " + str(type) +" %", fontsize=15)
+    
+    plt.subplot(132)
+    X = agg1['DECILE'].tolist()
+    X.append(0)
+    Y = agg1['DIST_TAR'].tolist()
+    Y.append(0)
+    plt.plot(sorted(X), sorted(Y))
+    plt.plot([0, 100], [0, 100], 'r--')
+    plt.xticks(range(0,110,10))
+    plt.yticks(range(0,110,10))
+    plt.grid(True)
+    plt.title('Gains Chart', fontsize=20)
+    plt.xlabel("Population %", fontsize=15)
+    plt.ylabel(str(target) + str("DISTRIBUTION") + " %", fontsize=15)
+    plt.annotate(round(agg1[agg1['DECILE'] == 30].DIST_TAR.item(), 2), xy=[30,30],
+                 xytext=(25, agg1[agg1['DECILE'] == 30].DIST_TAR.item() + 5),
+                 fontsize = 13
+                )
+    plt.annotate(round(agg1[agg1['DECILE'] == 50].DIST_TAR.item(), 2),
+                 xy=[50,50],
+                 xytext=(45, agg1[agg1['DECILE'] == 50].DIST_TAR.item() + 5),
+                 fontsize = 13
+                 )
+    
+    plt.subplot(133)
+    plt.plot(agg1['DECILE'], agg1['LIFT'])
+    plt.xticks(range(10,110,10))
+    plt.grid(True)
+    plt.title('Lift Chart', fontsize=20)
+    plt.xlabel("Population %", fontsize=15)
+    plt.ylabel("Lift", fontsize=15)
+    
+    plt.tight_layout()
+    
+    
+#%% aggregation for actual vs predicted, gains and lift
+
+def gains(data, decile_df, decile_by, target, score):
+    
+    agg1 = pd.DataFrame({}, index=[])
+    agg1 = data.groupby(decile_by).agg(F.avg(target).alias('ACTUAL')).toPandas()
+    score_agg = data.groupby(decile_by).agg(F.avg(score).alias('PRED')).toPandas()
+    agg1 = agg1.sort_values(by=decile_by, ascending=True)
+    agg1 = agg1[[decile_by, 'ACTUAL',  'PRED', 'target_dist']]
+    agg1 = agg1.rename(columns={'target_dist': 'DIST_TAR', 
+                                'deciles': 'DECILE'}
+                       )
+    decile_by = 'DECILE'
+    agg1[decile_by] = agg1[decile_by]*10
+    agg1['LEFT'] = agg1['DIST_TAR'] / agg1[decile_by]
+    agg1.columns = [x.upper() for x in agg1.columns]
+    plots(agg1, target, 'Distribution')
+    
+    
+#%% train metrics
+
+gains(pred_train, train_deciles, 'deciles', 'label', 'probability')
+
+#%% test metrics
+
+gains(pred_test, test_deciles, 'deciles', 'label', 'probability')
+
+
+
+
 
 
 
