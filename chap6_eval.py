@@ -197,6 +197,36 @@ leave_one_group_out_validation(joined_df, 'education', groups)
 
 
 
+#%% ######## Evaluation Metric #####
+
+## classificatio 
+# Precision-Recall Curve
+# what happens to PR Curce when the classifier is Bad
+
+from sklearn.metrics import precision_recall_curve, average_precision_score
+import random
+import matplotlib.pyplot as plt
+# random target and probabilities
+rand_y = [random.choice([1, 0]) for i in range(0, 100)]
+rand_prob = [random.uniform(0, 1) for i in range(0, 100)]
+
+rand_precision, rand_recall, _ = precision_recall_curve(rand_y, probas_pred=rand_prob)
+pr = average_precision_score(y_true=rand_y, y_score=rand_prob)
+
+# plot random predicitons
+
+plt.figure()
+plt.title('PR curve')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.plot(rand_recall, rand_precision, label='Average Precision = %0.2f' % pr)
+plt.plot([0, 1], [0.5, 0.5], color='red', linestyle='--')
+plt.legend(loc = 'lower right')
+
+
+
+#%% ## Kolmogorov Smirnov (KS) statistics and Deciles ####
+
 
 
 
