@@ -227,6 +227,79 @@ plt.legend(loc = 'lower right')
 
 #%% ## Kolmogorov Smirnov (KS) statistics and Deciles ####
 
+#load dataset, cleanup and fit model
+from pyspark.sql import SparkSession
+from pyspark.ml.feature import VectorAssembler
+from pyspark.ml import Pipeline
+from pyspark.sql.functions import countDistinct
+from pyspark.ml.classification import LogisticRegression
+from pyspark.ml.evaluation import BinaryClassificationEvaluator
+from pyspark.sql import functions as F
+import numpy as np
+filename = "bank-full.csv"
+
+#%%
+spark = SparkSession.builder.getOrCreate()
+df = spark.read.csv(filename, header=True, inferSchema=True, sep=';')
+df = df.withColumn('label', F.when(F.col('y')=='yes', 1)
+                   .otherwise(0)
+                   )
+df = df.drop('y')
+
+# assemble individual columns to one column - features
+
+def AssembleVectors(df, features_list, target_variable_name):
+    assembler = VectorAssembler(inputCols=features_list,
+                                outputCol='features'
+                                )
+    stages = [assembler]
+    selectedCols = [target_variable_name, 'features']
+    pipeline = Pipeline(stages=stages)
+    assembleModel = pipeline.fit(df)
+    
+    df = assembleModel.transform(df).select(selectedCols)
+    return df
+
+#%%
+df = df.select(['education', 'age', 'balance', 'day',
+                'duration', 'campaign', 'pdays', 'previous',
+                'label'
+                ]
+               )
+
+features_list = ['age', 'balance', 'day', 'duration', 
+                 'campaign', 'pdays', 'previous'
+                 ]
+
+assembled_df = AssembleVectors(df, features_list, 'label')
+
+clf = LogisticRegression(featuresCol='features', labelCol='label')
+train, test = assembled_df.randomSplit([0.7, 0.3], seed=12345)
+clf_model = clf.fit(train)
+
+
+#%% Deciling and KS calculation begins here
+from pyspark.sql import Window
+
+def CreateDeciles(df, clf, score, prediction, target, buckets):
+    # get predictions from the model
+    pred = clf.transform(df)
+    
+    # probability of 1's prediction and target
+    pred = (pred.select(F.col(score), F.col(prediction), F.col(target))
+            .rdd.map(lambda row: (float(row[score[1]]), 
+                                  float(row['prediction']),
+                                  float(row[target])
+                                  )
+                     )
+            )
+    predDF = pred.toDF(schema=[score, prediction, target])
+    
+    # remove ties in scores work around
+    window = Window.orderBy(F.desc(score))
+    
+    
+
 
 
 
