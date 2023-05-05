@@ -44,6 +44,68 @@ df.count()
 
 #%% preprocess text data
 
+reviews = df.rdd.map(lambda x: x['Review Text']).filter(lambda x: x is not None)
+
+StopWords = stopwords.words("english")
+
+tokens = (reviews.map(lambda document: document.strip().lower())
+          .map(lambda document: re.split(" ", document))
+          .map(lambda word: [x for x in word if x.isalpha()])
+          .map(lambda word: [x for x in word if len(x) > 3])
+          .map(lambda word: [x for x in word if x not in StopWords])
+          .zipWithIndex()
+          )
+
+
+# convert rdd to dataframe
+df_txts = spark.createDataFrame(tokens, ["list_of_words", "index"])
+
+# TF
+cv = CountVectorizer(inputCol="raw_features", outputCol="features",
+                     vocabSize=5000, minDF=10
+                     )
+cvmodel = cv.fit(df_txts)
+result_cv = cvmodel.transform(df_txts)
+
+
+# IDF
+idf = IDF(inputCol="raw_features", outputCol="features")
+idfModel = idf.fit(result_cv)
+result_tfidf = idfModel.transform(result_cv)
+
+
+num_topics = 10
+max_iterations = 100
+lda_model = LDA.train(result_tfidf.select("index", "features")
+                      .rdd.mapValues(Vectors.fromML).map(list), k=num_topics,
+                      maxIterations=max_iterations
+                      )
+
+
+wordNumbers = 5
+data_topics = lda_model.describeTopics(maxTermsPerTopic=wordNumbers)
+vocabArray = cvmodel.vocabulary
+topicIndices = spark.sparkContext.parallelize(data_tp)
+
+def topic_render(topic):
+    terms = topic[0]
+    result = []
+    for i in range(wordNumbers):
+        term = vocabArray[terms[i]]
+        result.append(term)
+    return result
+
+
+topics_final = topicIndices.map(lambda topic: topic_render(topic)).collect()
+for topic in range(len(topics_final)):
+    print("Topic" + str(topic) + ":")
+    for term in topics_final[topic]:
+        print(term)
+    print('\n')
+
+
+
+
 
 
 
