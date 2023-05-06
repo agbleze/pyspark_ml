@@ -237,11 +237,40 @@ def ExtractFeatureImp(featureImp, dataset, featuresCol="features"):
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.classification import LogisticRegressionModel
 import joblib
+from pyspark.ml.classification import RandomForestClassifier
+from pyspark.ml.classification import RandomForestClassificationModel
 
 def logistic_model(train, x, y):
     lr = LogisticRegression(featuresCol=x, labelCol=y, maxIter=10)
     lrModel = lr.fit(train)
     return lrModel
+
+
+def randomForest_model(train, x, y):
+    rf = RandomForestClassifier(featuresCol=x, labelCol=y, numTrees=10)
+    rfModel = rf.fit(train)
+    return rfModel
+
+
+from pyspark.ml.classification import GBTClassifier
+from pyspark.ml.classification import GBTClassificationModel
+
+
+def gradientBoosting_model(train, x, y):
+    gb = GBTClassifier(featuresCol=x, labelCol=y, maxIter=10)
+    gbModel = gb.fit(train)
+    return gbModel
+
+
+from pyspark.ml.classification import DecisionTreeClassifier
+from pyspark.ml.classification import DecisionTreeClassificationModel
+
+def decisionTree_model(train, x, y):
+    dt = DecisionTreeClassifier(featuresCol=x, labelCol=y, maxDepth=5)
+    dtModel = dt.fit(train)
+    return dtModel
+
+
 
 
 
