@@ -271,6 +271,23 @@ def decisionTree_model(train, x, y):
     return dtModel
 
 
+from pyspark.ml.classification import MultilayerPerceptronClassifier
+from pyspark.ml.classification import MultilayerPerceptronClassificationModel
+
+def neuralNetwork_model(train, x, y, feature_count):
+    layers = [feature_count, feature_count*3, feature_count*2, 2]
+    mlp = MultilayerPerceptronClassifier(featuresCol=x, labelCol=y,
+                                         maxIter=100, layers=layers, blockSize=512,
+                                         seed=12345
+                                         )
+    mlpModel = mlp.fit(train)
+    return mlpModel
+
+
+
+
+
+
 
 
 
