@@ -125,8 +125,129 @@ def numerical_imputation(X, num_vars, impute_with=0):
     return X
 
 
+# 5. Rename categorical columns
+
+def rename_columns(X, char_vars):
+    mapping = dict(zip([i + '_index' for i in char_vars], char_vars))
+    X = X.select([col(c).alias(mapping.get(c, c))
+                  for c in X.columns
+                  ]
+                )
+    return X
+
+
+# 6. combining features and labels
+
+def join_features_and_target(X, Y):
+    X = X.withColumn('id', F.monotonically_increasing_id())
+    Y = Y.withColumn('id', F.monotonically_increasing_id())
+    joinedDF = X.join(Y, 'id', 'inner')
+    joinedDF = joinedDF.drop('id')
+    return joinedDF
+
+
+# 7. Data splitting to training, testing, and validation
+
+def train_valid_test_split(df, train_size=0.4, valid_size=0.3, seed=12345):
+    train, valid, test = df.randomSplit([train_size, valid_size, 1-train_size-valid_size], seed=12345)
+    return train, valid, test
+
+# 8. Assembling vectors
+
+def assembled_vectors(train,list_of_features_to_scale,target_column_name):
+#
+    stages = []
+    assembler = VectorAssembler(inputCols=list_of_features_to_scale,
+                                outputCol='features')
+    stages=[assembler]
+    selectedCols = [target_column_name,'features'] + list_of_features_to_scale
+    pipeline = Pipeline(stages=stages)
+    assembleModel = pipeline.fit(train)
+    train = assembleModel.transform(train).select(selectedCols)
+    return train 
+
+# 9. scaling input variables
+
+def scaled_dataframes(train, valid, test, list_of_features_to_scale,
+                      target_column_name
+                      ):
+    assembler = VectorAssembler(inputCols=list_of_features_to_scale,
+                                outputCols='assembled_features'
+                                )
+    scaler = StandardScaler(inputCol=assembler.getOutputCol(),
+                            outputCol='features'
+                            )
+    stages = [assembler, scaler]
+    selectedCols = [target_column_name, 'features'] + list_of_features_to_scale
+    pipeline = Pipeline(stages=stages)
+    pipelineModel = pipeline.fit(train)
     
+    train = pipelineModel.transform(train).select(selectedCols)
+    valid = pipelineModel.transform(valid).select(selectedCols)
+    test = pipelineModel.transform(test).select(selectedCols)
+    return train, valid, test, pipelineModel
+
+
+#%% ####### FEATURE SELECTION #####
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+def draw_feature_importance(user_id, mdl_ltrl, importance_df):
+    importance_df = importance_df.sort_values('Importance_Score')
+    plt.figure(figsize=(15,15))
+    plt.title('Feature Importance')
+    plt.barh(range(len(importance_df['Importance_Score'])), 
+             importance_df['Importance_Score'],
+             align='center'
+             )
+    plt.yticks(range(len(importance_df['Importance_Score'])),
+               importance_df['name']
+               )
+    plt.ylabel('Variable Importance')
+    plt.savefig('/home/' + user_id + '/' + 'mla_' + mdl_ltrl + '/' +
+                'Features selected for modeling.png', bbox_inches='tight'
+                )
+    plt.close()
+    return None
+
+
+def save_feature_importance(user_id, mdl_ltrl, importance_df):
+    importance_df.drop('idx', axis=1, inplace=True)
+    importance_df = importance_df[0:30]
+    importance_df.to_excel('/home/' + user_id + '/' + 'mla_' + mdl_ltrl +
+                            '/' + 'feature_importance.xlsx'
+                            )
+    draw_feature_importance(user_id, mdl_ltrl, importance_df)
+    return None
+
+
+def ExtractFeatureImp(featureImp, dataset, featuresCol="features"):
+    list_extract = []
+    for i in dataset.schema[featuresCol].metadat["ml_attr"]["attrs"]:
+        list_extract = list_extract + dataset.schema[featuresCol].metadata["ml_attr"]["attrs"][i]
+    varlist = pd.DataFrame(list_extract)
+    varlist['Importance_Score'] = varlist['idx'].apply(lambda x: featureImp[x])
+    return (varlist.sort_values('Importance_Score', ascending=False))
+
+
+#%% ####### MODEL BUILDING #######
+
+from pyspark.ml.classification import LogisticRegression
+from pyspark.ml.classification import LogisticRegressionModel
+import joblib
+
+def logistic_model(train, x, y):
+    lr = LogisticRegression(featuresCol=x, labelCol=y, maxIter=10)
+    lrModel = lr.fit(train)
+    return lrModel
 
 
 
 
+
+
+
+
+# %%
