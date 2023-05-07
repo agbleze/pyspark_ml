@@ -239,6 +239,7 @@ from pyspark.ml.classification import LogisticRegressionModel
 import joblib
 from pyspark.ml.classification import RandomForestClassifier
 from pyspark.ml.classification import RandomForestClassificationModel
+import time
 
 def logistic_model(train, x, y):
     lr = LogisticRegression(featuresCol=x, labelCol=y, maxIter=10)
@@ -286,7 +287,78 @@ def neuralNetwork_model(train, x, y, feature_count):
 
 
 #%% ###### Metric Calculation #######
+from pyspark.sql.types import DoubleType
+from pyspark.sql import *
+from pyspark.sql.functions import desc, udf
+from pyspark.sql import functions as F
+import sys
+import builtins
+from pyspark.ml.evaluation import BinaryClassificationEvaluator
+from pyspark.ml.feature import QuantileDiscretizer
+import numpy as np
+from pyspark import (SparkContext, HiveContext, 
+                     Row, SparkConf
+                     )
 
+
+
+
+spark = (SparkSession.builder.appName("MLA_metric_calculator")
+         .enableHiveSupport().getOrCreate()
+         ) 
+spark.sparkContext.setLogLevel("ERROR")
+sc = spark.sparkContext
+
+def highlight_max(data, color='yellow'):
+    attr = 'background-color: {}'.format(color)
+    if data.ndim == 1:
+        is_max = data == data.max()
+        return [attr if v else '' for v in is_max]
+    else:
+        is_max = data == data.max().max()
+        return pd.DataFrame(np.where(is_max, attr, ''), index=data.index,
+                            columns=data.columns
+                            )
+
+
+def calculate_metrics(predictions, y, data_type):
+    start_time4 = time.time()
+    evaluator = BinaryClassificationEvaluator(labelCol=y,
+                                              rawPredictionCol='probability'
+                                              )
+    auroc = evaluator.evaluate(predictions, {evaluator.metricName: "aureaUnderROC"})
+    print(auroc)
+    
+    selectedCols = (predictions.select(F.col("probability"),
+                                      F.col('prediction'), F.col(y)
+                                      )
+                    .rdd.map(lambda row: (float(row['probability'][1]),
+                                          float(row['prediction']), float(row[y])))
+                    .collect()
+
+                     )
+    y_score, y_pred, y_true = zip(*selectedCols)
+    
+    # calculate accuracy
+    accuracydf = predictions.withColumn('acc', F.when(predictions.prediction==predictions[y], 1)
+                                        .otherwise(0))
+    accuracydf.createOrReplaceTempView("accuracyTable")
+    RFaccuracy = spark.sql("select sum(acc)/count(1) as accuracy from accuracyTable").collect()[0][0]
+    print('Accuracy calculated', RFaccuracy)
+    
+    # Build KS Table
+    split1_udf = udf(lambda value: value[1].item(), DoubleType())
+    
+    if data_type in ['train', 'valid', 'test', 'oot1', 'oot2']:
+        decileDF = predictions.select(y, split1_udf('probability').alias('probability'))
+    else:
+        decileDF = predictions.select(y, 'probability')
+        
+    decileDF = decileDF.withColumn('non_target', 1-decileDF[y])
+
+    window = Window.orderBy(desc("probability"))
+    decileDF = decileDF.withColumn('rownum', F.row_number().over(window))
+    decileDF.cache()
 
 
 
@@ -298,3 +370,13 @@ def neuralNetwork_model(train, x, y, feature_count):
 
 
 # %%
+
+
+
+
+
+
+
+
+
+
