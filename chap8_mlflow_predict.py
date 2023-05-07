@@ -375,8 +375,23 @@ def calculate_metrics(predictions, y, data_type):
         non_target_cnt, on='deciles', how='inner')
     overall_cnt = overall_cnt.sort_values(by='deciles', ascending=True)
     overall_cnt['Pct_target'] = (overall_cnt['target']/overall_cnt['count']) * 100
-     
+    overall_cnt['cum_target'] = overall_cnt.target.cumsum()
+    overall_cnt['cum_non_target'] = overall_cnt.non_target.cumsum()
+    overall_cnt['%Dist_Target'] = (overall_cnt['cum_target'] / overall_cnt.
+    target.sum())*100
+    overall_cnt['%Dist_non_Target'] = (overall_cnt['cum_non_target'] /
+                                       overall_cnt.non_target.sum()
+                                    )*100
+    overall_cnt['spread'] = builtins.abs(overall_cnt['%Dist_Target']-
+    overall_cnt['%Dist_non_Target'])
+    decile_table=overall_cnt.round(2)
+    print("KS_Value =", builtins.round(overall_cnt.spread.max(),2))
+    decileDF.unpersist()
     
+    RFbucketedData.unpersist()
+    print("Metrics calculation process Completed in : "+ " %s seconds" %
+    (time.time() - start_time4))
+    return auroc,RFaccuracy,builtins.round(overall_cnt.spread.max(),2), y_score, y_pred, y_true, overall_cnt
 
 
 
