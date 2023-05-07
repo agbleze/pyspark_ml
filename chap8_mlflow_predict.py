@@ -359,6 +359,24 @@ def calculate_metrics(predictions, y, data_type):
     window = Window.orderBy(desc("probability"))
     decileDF = decileDF.withColumn('rownum', F.row_number().over(window))
     decileDF.cache()
+    
+    decileDF = decileDF.withColumn('rownum', decileDF['rownum'].cast('double'))
+    
+    window2 = Window.orderBy('rownum')
+    RFbucketedData = decileDF.withColumn('deciles', F.ntile(10).over(window2))
+    RFbucketedData = RFbucketedData.withColumn('deciles', RFbucketedData['deciles'].cast('int'))
+    RFbucketedData.cache()
+    
+    print('KS calculation start')
+    target_cnt=RFbucketedData.groupBy('deciles').agg(F.sum(y).alias('target')).toPandas()
+    non_target_cnt = RFbucketedData.groupBy('deciles').agg(F.sum('non_target').alias('non_target')).toPandas()
+    overall_cnt = RFbucketedData.groupBy('deciles').count().alias('Total').toPandas()
+    overall_cnt = overall_cnt.merge(target_cnt, on='deciles', how='inner').merge(
+        non_target_cnt, on='deciles', how='inner')
+    overall_cnt = overall_cnt.sort_values(by='deciles', ascending=True)
+    overall_cnt['Pct_target'] = (overall_cnt['target']/overall_cnt['count']) * 100
+     
+    
 
 
 
