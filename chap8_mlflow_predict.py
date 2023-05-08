@@ -456,6 +456,33 @@ def draw_ks_plot(user_id, mdl_ltrl, model_type):
     
 #%% #### confusion matrix
 
+def draw_confusion_matrix(user_id, mdl_ltrl, y_pred, y_true, model_type, data_type):
+    AccuracyValue = metrics.accuracy_score(y_pred=y_pred, y_true=y_true)
+    PrecisionValue = metrics.precision_score(y_pred=y_pred, y_true=y_true)
+    RecallValue = metrics.recall_score(y_pred=y_pred, y_true=y_true)
+    F1Value = metrics.f1_score(y_pred=y_pred, y_true=y_true)
+    
+    plt.title(f'''{str(model_type)} Model - Confusion Matrix for 
+              {str(data_type)} data Accuracy: {AccuracyValue} 
+              Precision: {PrecisionValue} Recall: {RecallValue} F1 Score: {F1Value}'''
+              )
+    
+    cm = metrics.confusion_matrix(y_true=y_true, y_pred=y_pred)
+    sns.heatmap(cm, annot=True, fmt='g')
+    plt.xlabel('Predicted labels')
+    plt.ylabel('True labels')
+    
+    
+    print('/home/' + user_id + '/' + 'mla_' + mdl_ltrl + '/' + str(model_type) + '/' + str(model_type) + ' Model - Confusion Matrix for ' +
+            str(data_type) + ' data.png'
+        )
+    
+    plt.savefig('/home/' + user_id + '/' + 'mla_' + mdl_ltrl + '/' +
+                str(model_type) + '/' + str(model_type) + ' Model - Confusion Matrix for ' + str(data_type) + ' data.png', bbox_inches='tight'
+                )
+    plt.close()
+
+    
 
 
             
