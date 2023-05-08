@@ -482,7 +482,33 @@ def draw_confusion_matrix(user_id, mdl_ltrl, y_pred, y_true, model_type, data_ty
                 )
     plt.close()
 
+
+
+#%% #### model validation ###
+
+def model_validation(user_id, mdl_ltrl, data, y, model, model_type, data_type):
+    start_time = time.time()
     
+    pred_data = model.transform(data)
+    print('model output predicted')
+    
+    roc_data, accuracy_data, ks_data, y_score, y_pred, y_true, decile_table = calculate_metrics(pred_data, data_type)
+    draw_roc_plot(user_id, mdl_ltrl, y_score, y_true, model_type, data_type)
+    decile_table.to_excel('/home/' + user_id + '/' + 'mla_' + mdl_ltrl
+                            + '/' + str(model_type) + '/KS ' + str(model_type) + ' Model ' +
+                            str(data_type) + '.xlsx',index=False
+                        )
+    
+    draw_confusion_matrix(user_id, mdl_ltrl, y_pred, y_true, model_type, data_type)
+    print('Metric computed')
+    l = [roc_data, accuracy_data, ks_data]
+    end_time = time.time()
+    print("Model validation process completed in :  %s seconds" % (end_time-start_time))
+    return l
+
+
+
+#%%  ###### model selection #####    
 
 
             
