@@ -378,7 +378,8 @@ def calculate_metrics(predictions, y, data_type):
     overall_cnt['cum_target'] = overall_cnt.target.cumsum()
     overall_cnt['cum_non_target'] = overall_cnt.non_target.cumsum()
     overall_cnt['%Dist_Target'] = (overall_cnt['cum_target'] / overall_cnt.
-    target.sum())*100
+                                    target.sum()
+                                    )*100
     overall_cnt['%Dist_non_Target'] = (overall_cnt['cum_non_target'] /
                                        overall_cnt.non_target.sum()
                                     )*100
@@ -395,7 +396,70 @@ def calculate_metrics(predictions, y, data_type):
 
 
 
+#%%  ######### validation and plot generation #########
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from sklearn import metrics
+import glob
+import os
+import pandas as pd
+import seaborn as sns
+from pandas import ExcelWriter
+from metrics_calculator import *
+
+
+def draw_roc_plot(user_id, mdl_ltrl, y_score, y_true, model_type, data_type):
+    fpr, tpr, threshold = metrics.roc_curve(y_true, y_score, pos_label = 1)
+    roc_auc = metrics.auc(fpr, tpr)
+    plt.title(str(model_type) + ' Model - ROC for ' + str(data_type) + ' data')
+    plt.plot([0,1], [0,1], 'r--')
+    plt.plot(fpr, tpr, label='AUC = %0.2f' % roc_auc)
+    plt.xlabel('False Positive Rate (1 - Specificity)')
+    plt.ylabel('True Positive Rate (Snesitivity)')
+    plt.legend(loc = 'lower right')
+    print('/home/' + user_id + '/' + 'mla_' + mdl_ltrl 
+          + '/' + str(model_type) + '/' + str(model_type) + ' Model - ROC for ' + str(data_type) +
+         'data.png'
+         )
+    plt.savefig('/home/' + user_id + '/' + 'mla_' + mdl_ltrl + '/' +
+                str(model_type) + '/' + str(model_type) + ' Model - ROC for ' +
+                str(data_type) + ' data.png', bbox_inches='tight'
+                )
+    plt.close()
+    
+    
+def draw_ks_plot(user_id, mdl_ltrl, model_type):
+    writer = ExcelWriter('/home/' + user_id + '/' + 'mla_' + mdl_ltrl + '/'
+                         + str(model_type) + '/KS_Charts.xlsx'
+                        )
+    
+    for filename in glob.glob('/home/' + user_id + '/' + 'mla_' + mdl_ltrl
+                                + '/' + str(model_type) + '/KS ' + str(model_type) + ' Model*.xlsx'
+                                ):
+        excel_file = pd.ExcelFile(filename)
+        (_, f_name) = os.path.split(filename)
+        (f_short_name, _) = os.path.splitext(f_name)
+        for sheet_name in excel_file.sheet_names:
+            df_excel = pd.read_excel(filename, sheet_name=sheet_name)
+            df_excel = df_excel.style.apply(highlight_max, subset=['spread'], color='#e6b71e')
+            df_excel.to_excel(writer, f_short_name, index=False)
+            worksheet = writer.sheets[f_short_name]
+            worksheet.condiditonal_format('C2:C11', {'type': 'data_bar',
+                                                     'bar_color': '#34b5d9'}
+                                          )
+            worksheet.conditional_format('E2:E11', {'type': 'data_bar', 'bar_color': '#366fff'})
+        os.remove(filename)
+    writer.save()
+    
+    
+#%% #### confusion matrix
+
+
+
+            
+            
 
 
 
