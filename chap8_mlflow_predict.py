@@ -516,6 +516,10 @@ def select_model(user_id, mdl_ltrl, model_selection_criteria, dataset_to_use):
                                 'accuracy_test', 'ks_test', 'roc_oot1', 'accuracy_oot1', 'ks_oot1',
                                    'roc_oot2', 'accuracy_oot2', 'ks_oot2']
                       )
+    current_dir = os.getcwd()
+    os.chdir('/home/' + user_id + '/' + 'mla_' + mdl_ltrl)
+    for file in glob.glob('*metrics.z'):
+        l = joblib.load(file)
             
             
 
