@@ -510,7 +510,12 @@ def model_validation(user_id, mdl_ltrl, data, y, model, model_type, data_type):
 
 #%%  ###### model selection #####    
 
-
+def select_model(user_id, mdl_ltrl, model_selection_criteria, dataset_to_use):
+    df = pd.DataFrame({}, 
+                      columns=['roc_train', 'accuracy_train', 'ks_train', 'roc_valid', 'accuracy_valid', 'ks_valid', 'roc_test',
+                                'accuracy_test', 'ks_test', 'roc_oot1', 'accuracy_oot1', 'ks_oot1',
+                                   'roc_oot2', 'accuracy_oot2', 'ks_oot2']
+                      )
             
             
 
