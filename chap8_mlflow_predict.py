@@ -532,6 +532,22 @@ def select_model(user_id, mdl_ltrl, model_selection_criteria, dataset_to_use):
     column_to_sort = model_selection_criteria + '_' + dataset_to_use.lower()
     checker_value = 0.03
     
+    if model_selection_criteria == 'ks':
+        checker_value = checker_value * 100
+        
+    df['counter'] = (np.abs(df[column_to_sort] - df[model_selection_criteria + '_train']) > checker_value).astype(int)
+                    + (np.abs(df[column_to_sort] - df[model_selection_criteria + '_valid']) > checker_value).astype(int)
+                    + (np.abs(df[column_to_sort] - df[model_selection_criteria + '_test']) > checker_value).astype(int) 
+                    + (np.abs(df[column_to_sort] - df[model_selection_criteria + '_oot1']) > checker_value).astype(int) 
+                    + (np.abs(df[column_to_sort] - df[model_selection_criteria + '_oot2']) > checker_value).astype(int)
+    
+    
+    df = df.sort_values(['counter', column_to_sort], ascending=[True, False]).reset_index(drop=True)
+    df['selected_model'] = ''
+    df.loc[0,'selected_model'] = 'Champion'
+    df.loc[1,'selected_model'] = 'Challenger'
+    df.to_excel('/home/' + user_id + '/' + 'mla_' + mdl_ltrl + '/metrics.xlsx')
+    return df
     
             
             
