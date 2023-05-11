@@ -520,6 +520,19 @@ def select_model(user_id, mdl_ltrl, model_selection_criteria, dataset_to_use):
     os.chdir('/home/' + user_id + '/' + 'mla_' + mdl_ltrl)
     for file in glob.glob('*metrics.z'):
         l = joblib.load(file)
+        df.loc[str(file.split('_')[0])] = l
+        
+    for file in glob.glob('*metrics.z'):
+        os.remove(file)
+        
+    os.chdir(current_dir)
+    df.index = df.index.set_names(['model_type'])
+    df = df.reset_index()
+    model_selection_criteria = model_selection_criteria.lower()
+    column_to_sort = model_selection_criteria + '_' + dataset_to_use.lower()
+    checker_value = 0.03
+    
+    
             
             
             
